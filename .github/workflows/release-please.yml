@@ -41,7 +41,7 @@ jobs:
           if npm view "@chrischall/mcp-connector@$VERSION" version >/dev/null 2>&1; then
             echo "@chrischall/mcp-connector@$VERSION already published — skipping."
           else
-            npm publish
+            npm publish --provenance
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
