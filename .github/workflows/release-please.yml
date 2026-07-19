@@ -3,6 +3,16 @@ name: release-please
 on:
   push:
     branches: [main]
+  # `republish_tag` re-fires the publish job for a tag that is already cut —
+  # the escape hatch for a release whose original publish failed. Blank = the
+  # normal path (just check for a new release PR). Mirrors fetchproxy.
+  workflow_dispatch:
+    inputs:
+      republish_tag:
+        description: 'Existing tag to re-publish (e.g. v1.0.0). Blank = skip publish.'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -22,13 +32,21 @@ jobs:
 
   publish:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    # Fire on a fresh release, or on a manual dispatch naming an existing tag.
+    if: |
+      needs.release-please.outputs.release_created == 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.republish_tag != '')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm Trusted Publisher (OIDC) + provenance
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name || inputs.republish_tag }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 26
           registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
@@ -41,7 +59,5 @@ jobs:
           if npm view "@chrischall/mcp-connector@$VERSION" version >/dev/null 2>&1; then
             echo "@chrischall/mcp-connector@$VERSION already published — skipping."
           else
-            npm publish --provenance
+            npm publish --access public --provenance
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
