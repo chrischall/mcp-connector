@@ -122,38 +122,53 @@ must be provided by the consumer so the Worker bundles exactly one copy of each.
 copies of `agents` means two `McpAgent` classes and a Durable Object that doesn't
 resolve.
 
-## `@cloudflare/workers-oauth-provider` — pinned old, and what that costs
+## `@cloudflare/workers-oauth-provider` — on 0.8.x as of 2026-07-19
 
-The peer range is `^0.0.11`. On a `0.0.x` version caret is effectively an **exact pin**
-(`>=0.0.11 <0.0.12`), so this is 0.0.11 and nothing else. **Latest on npm is 0.8.2**
-(checked 2026-07-19) — the pin is many majors behind.
+The peer range is `^0.8.1`. It was `^0.0.11` until 2026-07-19; the fleet moved together.
 
-The concrete consequence, verified by unpacking both versions on 2026-07-19:
+Two things drove the move.
 
-- **0.0.11** serves only `/.well-known/oauth-authorization-server` (legacy discovery).
-- **0.8.2** additionally serves `/.well-known/oauth-protected-resource` and
-  `/.well-known/oauth-protected-resource/mcp` — the **RFC 9728** protected-resource
-  metadata that current MCP authorization drafts expect a resource server to publish.
+**RFC 9728.** 0.0.x served only `/.well-known/oauth-authorization-server` (legacy
+discovery). 0.8.x additionally serves `/.well-known/oauth-protected-resource` and
+`/.well-known/oauth-protected-resource/mcp` — the protected-resource metadata current
+MCP authorization drafts expect a resource server to publish. On 0.0.x every connector
+404'd that path; they worked on claude.ai only via the legacy fallback, so a client
+that dropped that fallback would have failed to discover *all nine* at once.
 
-**This is a forward-compatibility risk, not a current outage.** Verified live against
-the two deployed connectors on 2026-07-19:
+**A behavioural change that had already bitten us.** 0.8.x calls
+`validateRedirectUriScheme()` from `parseAuthRequest` **unconditionally**, and it
+rejects any value with no scheme — including the empty string an ABSENT `redirect_uri`
+becomes:
 
-| | `/.well-known/oauth-authorization-server` | `/.well-known/oauth-protected-resource` |
-| --- | --- | --- |
-| `connector.untappd.nullnet.app` | 200 | 404 |
-| `connector.setlist.nullnet.app` | 200 | 404 |
+```js
+const colonIndex = normalized.indexOf(":");
+if (colonIndex === -1) throw new Error("Invalid redirect URI");
+```
 
-Both connect and work fine on claude.ai today via the legacy discovery path. The
-exposure is that a client which drops the legacy fallback and requires RFC 9728 would
-fail to discover *all nine* connectors at once. If you upgrade the pin, that is a
-cross-fleet change — see the blast-radius rules above, and re-probe both hosts after.
+0.0.x only screened for dangerous schemes (`javascript:`, `data:`, …). So a Worker test
+that fetched `/authorize` without a `redirect_uri` passed on 0.0.x and throws
+`Invalid redirect URI` on 0.8.x. That request was always malformed OAuth; the old
+version simply didn't care. **If a consumer's handshake test breaks on upgrade, this is
+almost certainly why** — give the test a real `redirect_uri`; it can still omit
+`client_id`, so no client lookup happens and the assertion is unchanged.
 
-**Known drift to be aware of:** `untappd-mcp` has moved its own
-`@cloudflare/workers-oauth-provider` devDependency to `^0.8.1` (its lockfile resolves
-0.8.1) while every other consumer — and this package's peer range — still says
-`^0.0.11`. Its `node_modules` was still on 0.0.11 when checked, so what its last deploy
-actually bundled is **UNVERIFIED**. Don't treat untappd as evidence that 0.8.x works
-with this harness until someone confirms the deployed bundle.
+That bug hid for months behind a stale `node_modules`: `untappd-mcp`'s lockfile
+resolved 0.8.1 while its installed tree was still 0.0.11, so it passed locally and
+failed only on CI's clean install. **When changing this dependency, verify what is
+actually installed** rather than trusting a green run:
+
+```sh
+node -p "require('./node_modules/@cloudflare/workers-oauth-provider/package.json').version"
+```
+
+Compatibility was established before the move, not assumed: this package's API surface
+(the `OAuthProvider` constructor options, plus `parseAuthRequest` and
+`completeAuthorization` via `env.OAUTH_PROVIDER`) is unchanged across the bump, it
+typechecks and builds clean against 0.8.x, and `untappd-mcp` ran 0.8.1 in CI and in
+production with a green Workers suite first.
+
+Upgrading this pin again is a cross-fleet change — see the blast-radius rules above,
+and re-probe the deployed connectors afterwards.
 
 ## Gotchas in the source
 
