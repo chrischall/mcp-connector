@@ -65,8 +65,30 @@ theme-aware login page from the `ConnectorAuth` descriptor.
   `{ name, version, auth, buildClient(props, env), tools: Array<(server, client) => void> }`.
   Bind `Agent` to a Durable Object namespace (`MCP_OBJECT`) in `wrangler.jsonc` and
   `export default handler`.
-- `ConnectorAuth<Props>` — `{ service, fields: LoginField[], login(fields, env): Promise<Props>, privacyNote?, accent? }`.
+- `ConnectorAuth<Props>` — `{ service, fields: LoginField[], login(fields, env): Promise<Props>, userId?, privacyNote?, accent? }`.
 - `LoginField` — `{ name, label, type?: 'text' | 'password' }`.
+
+### Public services (no credentials)
+
+A service that needs no credentials — a fully public API — declares `fields: []`.
+The login page then renders a bare authorize button instead of a credential form,
+and `login` receives an empty object. Use it to verify the service is reachable
+and to return whatever props the client needs:
+
+```ts
+export const auth: ConnectorAuth<Props> = {
+  service: 'Charlotte On The Cheap',
+  fields: [],
+  privacyNote: 'This service needs no account — only public data is read.',
+  async login(_fields, _env) {
+    await MyClient.verifyReachable();
+    return { site: 'https://www.charlotteonthecheap.com' };
+  },
+};
+```
+
+Because there is no per-user identity, every grant is keyed on the user id
+`'public'` unless you set an explicit `userId`.
 
 ## License
 

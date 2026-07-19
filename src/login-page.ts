@@ -55,6 +55,9 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
   const service = escapeHtml(auth.service);
   const accent = safeAccent(auth.accent, '#4f46e5');
   const accentInk = inkOn(accent);
+  // A public service declares no credential inputs: the form degrades to a bare
+  // authorize button, and the copy must not imply an account is required.
+  const isPublic = auth.fields.length === 0;
 
   const fieldsHtml = auth.fields
     .map((field, i) => {
@@ -190,9 +193,13 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
   <body>
     <main class="card">
       <div class="inner">
-        <p class="eyebrow"><svg viewBox="0 0 20 20" aria-hidden="true" width="12" height="12"><path fill="currentColor" d="M10 1a4 4 0 0 0-4 4v2H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V5a4 4 0 0 0-4-4Zm-2 6V5a2 2 0 1 1 4 0v2H8Z"/></svg>Secure sign-in</p>
+        <p class="eyebrow"><svg viewBox="0 0 20 20" aria-hidden="true" width="12" height="12"><path fill="currentColor" d="M10 1a4 4 0 0 0-4 4v2H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V5a4 4 0 0 0-4-4Zm-2 6V5a2 2 0 1 1 4 0v2H8Z"/></svg>${isPublic ? 'No account needed' : 'Secure sign-in'}</p>
         <h1>Connect to ${service}</h1>
-        <p class="sub">Sign in with your ${service} account to authorize access.</p>
+        <p class="sub">${
+          isPublic
+            ? `${service} needs no credentials — authorize to read its public data.`
+            : `Sign in with your ${service} account to authorize access.`
+        }</p>
         ${errorHtml}
         <form method="post">
 ${fieldsHtml}

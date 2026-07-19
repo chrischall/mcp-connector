@@ -27,6 +27,47 @@ it('POST /authorize verifies creds and completes authorization with props', asyn
   expect(res.headers.get('location')).toContain('code=xyz');
 });
 
+describe('zero-auth (public) connectors', () => {
+  const publicAuth = {
+    service: 'Charlotte On The Cheap',
+    fields: [],
+    login: vi.fn(async () => ({ site: 'https://www.charlotteonthecheap.com' })),
+  };
+
+  it('completes authorization with no fields instead of throwing on fields[0]', async () => {
+    const env = fakeEnv();
+    const body = new URLSearchParams({ oauthReq: btoa(JSON.stringify({ clientId: 'c' })) });
+    const req = new Request('https://x/authorize', { method: 'POST', body });
+    const res = await handleAuthorize(req, env, publicAuth);
+    expect(publicAuth.login).toHaveBeenCalledWith({}, env);
+    expect(env.OAUTH_PROVIDER.completeAuthorization).toHaveBeenCalledWith(
+      expect.objectContaining({ props: { site: 'https://www.charlotteonthecheap.com' }, userId: 'public' }),
+    );
+    expect(res.status).toBe(302);
+  });
+
+  it('honors an explicit userId override', async () => {
+    const env = fakeEnv();
+    const body = new URLSearchParams({ oauthReq: btoa(JSON.stringify({ clientId: 'c' })) });
+    const req = new Request('https://x/authorize', { method: 'POST', body });
+    await handleAuthorize(req, env, { ...publicAuth, userId: 'cotc-reader' });
+    expect(env.OAUTH_PROVIDER.completeAuthorization).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'cotc-reader' }),
+    );
+  });
+
+  it('still surfaces a login failure as a re-rendered page, not a crash', async () => {
+    const env = fakeEnv();
+    const failing = { ...publicAuth, login: vi.fn(async () => { throw new Error('site unreachable'); }) };
+    const body = new URLSearchParams({ oauthReq: btoa(JSON.stringify({ clientId: 'c' })) });
+    const req = new Request('https://x/authorize', { method: 'POST', body });
+    const res = await handleAuthorize(req, env, failing);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('site unreachable');
+    expect(env.OAUTH_PROVIDER.completeAuthorization).not.toHaveBeenCalled();
+  });
+});
+
 it('POST with bad creds re-renders the form with an error (no completeAuthorization)', async () => {
   const env = fakeEnv();
   const badAuth = { ...auth, login: vi.fn(async () => { throw new Error('login failed'); }) };
