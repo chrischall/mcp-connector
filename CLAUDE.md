@@ -76,25 +76,35 @@ A consumer implements this (`src/types.ts`) and passes it as `opts.auth`:
 ```ts
 {
   service: string          // login-page branding, e.g. "Untappd"
-  fields: LoginField[]     // { name, label, type?: 'text' | 'password' }
+  fields: LoginField[]     // { name, label, type?: 'text' | 'password' }; [] = public service
+  userId?: string          // overrides the derived OAuth userId
   login(fields, env): Promise<Props>   // verify creds; THROW on bad creds
   privacyNote?: string
   accent?: string          // #rgb / #rrggbb only
 }
 ```
 
-Three constraints that are easy to get wrong:
+Four constraints that are easy to get wrong:
 
 1. **The FIRST field's submitted value becomes the OAuth `userId`.**
-   `handleAuthorize` calls `completeAuthorization({ userId: fields[auth.fields[0].name], … })`.
+   `handleAuthorize` calls `completeAuthorization({ userId: resolveUserId(auth, fields), … })`,
+   which returns `fields[auth.fields[0].name]` in the ordinary case.
    So field order is load-bearing identity, not cosmetics: put the stable account
    identifier (username, email) first, never a password or an API key that rotates.
    Reordering `fields` in a consumer re-keys every stored grant.
+   An explicit `auth.userId` overrides the derivation entirely — setting it pins every
+   grant to one key, so use it only where there is genuinely no per-user identity.
 2. **`login` signals failure by throwing.** The thrown message is rendered verbatim
    (HTML-escaped) into the login page, so it is user-facing — write it as a fix
    instruction, and never let a credential or upstream response body into it.
 3. **The failure response is HTTP 200**, not 4xx — it re-renders the form so the browser
    shows it rather than an error page. Don't "fix" that status.
+4. **`fields: []` declares a PUBLIC service** — one with no credentials at all (a fully
+   open API). The login page then renders a bare authorize button and drops the
+   "Secure sign-in" copy, `login` receives `{}`, and the grant is keyed on the userId
+   `'public'` because there is no per-user identity to key it on. Consequence: all
+   grants for that connector share one `userId`, so don't use `fields: []` for a service
+   that *does* have accounts just to skip building a form.
 
 `login`'s returned `Props` are stored encrypted in `OAUTH_KV` by the OAuth provider and
 handed back to `buildClient(props, env)` on every subsequent MCP request.
