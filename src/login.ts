@@ -26,6 +26,17 @@ export async function parseLoginForm(request: Request): Promise<ParsedLoginForm>
   return { values: rest, oauthReq };
 }
 
+/**
+ * The user id recorded for the grant: an explicit `auth.userId` wins, otherwise
+ * the first field's submitted value. A public connector declares no fields and
+ * so has no per-user identity — it keys every grant on `'public'`.
+ */
+function resolveUserId<Props>(auth: ConnectorAuth<Props>, fields: Record<string, string>): string {
+  if (auth.userId) return auth.userId;
+  const first = auth.fields[0];
+  return first ? fields[first.name] : 'public';
+}
+
 function messageOf(e: unknown): string {
   if (e instanceof Error) return e.message;
   return String(e);
@@ -58,7 +69,7 @@ export async function handleAuthorize<Props>(
     const props = await auth.login(fields, env);
     const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
       request: oauthReqInfo,
-      userId: fields[auth.fields[0].name],
+      userId: resolveUserId(auth, fields),
       scope: [],
       metadata: {},
       props,

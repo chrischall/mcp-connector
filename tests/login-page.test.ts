@@ -12,6 +12,43 @@ const auth: ConnectorAuth<{ token: string }> = {
   privacyNote: 'We never store your password.',
 };
 
+describe('renderLoginPage — zero-auth (public) connectors', () => {
+  const publicAuth: ConnectorAuth<{ site: string }> = {
+    service: 'Charlotte On The Cheap',
+    fields: [],
+    login: async () => ({ site: 'https://www.charlotteonthecheap.com' }),
+    privacyNote: 'This service needs no account — only public data is read.',
+  };
+
+  it('renders no credential inputs when there are no fields', () => {
+    const html = renderLoginPage(publicAuth);
+    expect(html).not.toMatch(/<input[^>]*type="(text|password)"/);
+  });
+
+  it('still carries the oauthReq and a submit button so the grant can complete', () => {
+    const html = renderLoginPage(publicAuth, { oauthReq: { clientId: 'c' } });
+    expect(html).toContain('name="oauthReq"');
+    expect(html).toMatch(/<button[^>]*type="submit"/);
+  });
+
+  it('does not claim a sign-in is needed', () => {
+    const html = renderLoginPage(publicAuth);
+    expect(html).not.toContain('Secure sign-in');
+    expect(html).not.toMatch(/Sign in with your .* account/);
+  });
+
+  it('still shows the service name and privacy note', () => {
+    const html = renderLoginPage(publicAuth);
+    expect(html).toContain('Charlotte On The Cheap');
+    expect(html).toContain('only public data is read');
+  });
+
+  it('surfaces an error (e.g. the site being unreachable) on the public page too', () => {
+    const html = renderLoginPage(publicAuth, { error: 'site unreachable' });
+    expect(html).toContain('site unreachable');
+  });
+});
+
 describe('renderLoginPage', () => {
   it('renders an input for each field', () => {
     const html = renderLoginPage(auth);
