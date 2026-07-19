@@ -1,6 +1,6 @@
 {
   "name": "@chrischall/mcp-connector",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Reusable Cloudflare remote-connector harness for MCP servers (auth-agnostic OAuth + streamable-HTTP McpAgent).",
   "type": "module",
   "main": "./dist/index.js",
