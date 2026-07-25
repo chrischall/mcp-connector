@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/chrischall/mcp-connector/compare/v1.1.0...v1.1.1) (2026-07-25)
+
+
+### Bug Fixes
+
+* **deps:** widen the agents peer range to accept 0.19 ([#11](https://github.com/chrischall/mcp-connector/issues/11)) ([4452035](https://github.com/chrischall/mcp-connector/commit/445203589cdfaa68fd7becf7dfcf192827126f85))
+
 ## [1.1.0](https://github.com/chrischall/mcp-connector/compare/v1.0.0...v1.1.0) (2026-07-19)
 
 
