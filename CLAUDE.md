@@ -10,33 +10,47 @@ changing anything in `src/`.
 
 ## Blast radius (read this first)
 
-Nine repos consume it, all as a **devDependency** of their Worker build:
+Eleven repos consume it, all as a **devDependency** of their Worker build:
 
-`artsonia-mcp` · `gogcli-mcp` · `ofw-mcp` · `setlist-mcp` · `sixflags-mcp` ·
-`splitwise-mcp` · `untappd-mcp` · `vibo-mcp` · `zola-mcp`
+`artsonia-mcp` · `gemini-mcp` · `gogcli-mcp` · `ofw-mcp` · `onthecheap-mcp` ·
+`setlist-mcp` · `sixflags-mcp` · `splitwise-mcp` · `untappd-mcp` · `vibo-mcp` ·
+`zola-mcp`
 
-**Every one of them pins `"@chrischall/mcp-connector": "^0.1.0"`** (verified across all
-nine `package.json` files, 2026-07-19). That range matters in both directions:
+**All eleven pin `"@chrischall/mcp-connector": "^1.0.0"`** — except `onthecheap-mcp`,
+which pins `^1.1.0` (verified across all eleven `package.json` files on `origin/main`,
+2026-07-24). That range matters in both directions:
 
-- A **0.1.x** release (patch *or* minor — `release-please` is configured with
-  `bump-minor-pre-major` + `bump-patch-for-minor-pre-major`, so pre-1.0 `feat:` also
-  lands as a patch) is picked up by all nine on their next lockfile refresh, with no
-  human reviewing it per-repo. There is no staged rollout. Treat a breaking change to
-  `createConnector`, `ConnectorAuth`, or the mounted route set as a change you are
-  shipping simultaneously to nine live Workers.
-- A **0.2.0** would be picked up by *none* of them (caret on `0.1.x` excludes `0.2.0`),
-  so it silently strands the fleet on the old harness until nine PRs bump the range.
+- A **1.x** release (patch *or* minor) is picked up by all eleven on their next lockfile
+  refresh, with no human reviewing it per-repo. There is no staged rollout. Treat a
+  breaking change to `createConnector`, `ConnectorAuth`, or the mounted route set as a
+  change you are shipping simultaneously to eleven live Workers.
+- A **2.0.0** would be picked up by *none* of them (caret on `1.x` excludes `2.0.0`), so
+  it silently strands the fleet on the old harness until eleven PRs bump the range.
 
-Neither outcome is what you want by accident. If a change is genuinely breaking, bump
-to `0.2.0` **and** open the nine follow-up bumps; if it is compatible, ship it as 0.1.x
+Neither outcome is what you want by accident. If a change is genuinely breaking, bump to
+`2.0.0` **and** open the eleven follow-up bumps; if it is compatible, ship it as 1.x
 knowing it auto-propagates.
 
-**The tests in this repo do not protect the consumers.** `tests/` covers `login.ts` and
-`login-page.ts` only — `createConnector` itself (the `OAuthProvider` wiring, the
-`McpAgent` subclass, the route mounting) has **no test here**, and this repo has no
-Workers-runtime vitest pool. The only real integration coverage lives in the consumer
+### The peer ranges are part of that blast radius
+
+The Cloudflare/MCP dependencies are declared as **peers** so each consumer owns the one
+installed copy. That makes every peer range a public API contract, and a range narrower
+than what the fleet actually installs is a fleet-wide install failure, not a warning:
+`agents` shipped 0.19.0, dependabot bumped a consumer to it, and `npm ci` died on
+`ERESOLVE` because this package still claimed `agents@^0.17.3` (artsonia-mcp#72). Ten
+more consumers were one dependabot run from the same break.
+
+`tests/peer-ranges.test.ts` guards the half of that which is checkable offline — every
+peer must also be a devDependency here, and the version we build against must satisfy
+the range we advertise. Widening a peer still needs the consumer build below.
+
+**The tests in this repo do not protect the consumers.** `tests/` covers `login.ts`,
+`login-page.ts`, and the peer ranges only — `createConnector` itself (the
+`OAuthProvider` wiring, the `McpAgent` subclass, the route mounting) has **no test
+here**, and this repo has no Workers-runtime vitest pool. The only real integration
+coverage lives in the consumer
 repos' `vitest.workers.config.ts` suites. So a harness change can go green on
-`npm run typecheck && npm run build && npm test` here and still break all nine at
+`npm run typecheck && npm run build && npm test` here and still break all eleven at
 deploy. Before releasing anything touching `src/index.ts`, build at least one consumer
 Worker against the local package (`npm pack` here, install the tarball there, then that
 repo's `npm run worker:test`).
@@ -46,7 +60,7 @@ repo's `npm run worker:test`).
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run build       # tsc -p tsconfig.json → dist/  (also the `prepare` script)
-npm test            # vitest run — tests/login.test.ts, tests/login-page.test.ts
+npm test            # vitest run — login, login-page, and peer-range tests
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck → build → test on Node 22. `dist/` is
