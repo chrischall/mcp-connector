@@ -28,6 +28,17 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          # RELEASE_PAT, not the default GITHUB_TOKEN. A release PR opened with
+          # GITHUB_TOKEN is authored by `github-actions[bot]`, and the fleet's
+          # auto-review job gates on `pull_request.user.type == 'User'` — so a
+          # bot-authored release PR is skipped by the review, never gets the
+          # `ready-to-merge` label the review would add on pass, and therefore
+          # can NEVER arm. Adding `release-ready` does nothing on its own: it
+          # only starts the review, and the review is what arms. That is exactly
+          # how #13 (release 1.1.1) ended up CLEAN, labelled, and unmergeable.
+          # Falls back to GITHUB_TOKEN so a repo without the secret still gets a
+          # release PR — it just won't trigger downstream workflows on it.
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
           release-type: node
 
   publish:
