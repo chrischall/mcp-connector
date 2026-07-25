@@ -48,8 +48,8 @@ the range we advertise. Widening a peer still needs the consumer build below.
 `login-page.ts`, and the peer ranges only — `createConnector` itself (the
 `OAuthProvider` wiring, the `McpAgent` subclass, the route mounting) has **no test
 here**, and this repo has no Workers-runtime vitest pool. The only real integration
-coverage lives in the consumer
-repos' `vitest.workers.config.ts` suites. So a harness change can go green on
+coverage lives in the consumer repos' `vitest.workers.config.ts` suites. So a harness
+change can go green on
 `npm run typecheck && npm run build && npm test` here and still break all eleven at
 deploy. Before releasing anything touching `src/index.ts`, build at least one consumer
 Worker against the local package (`npm pack` here, install the tarball there, then that
@@ -157,7 +157,7 @@ discovery). 0.8.x additionally serves `/.well-known/oauth-protected-resource` an
 `/.well-known/oauth-protected-resource/mcp` — the protected-resource metadata current
 MCP authorization drafts expect a resource server to publish. On 0.0.x every connector
 404'd that path; they worked on claude.ai only via the legacy fallback, so a client
-that dropped that fallback would have failed to discover *all nine* at once.
+that dropped that fallback would have failed to discover *all of them* at once.
 
 **A behavioural change that had already bitten us.** 0.8.x calls
 `validateRedirectUriScheme()` from `parseAuthRequest` **unconditionally**, and it
@@ -231,10 +231,11 @@ write-verification, transport archetypes, testing traps) live in
 [`chrischall/workflows`](https://github.com/chrischall/workflows):
 `docs/fleet-conventions.md`, plus `README.md` for the CI pipeline contract.
 
-Repo-specific: because this package is pre-1.0 and `release-please` is configured with
-`bump-minor-pre-major` + `bump-patch-for-minor-pre-major`, the bump ladder is shifted
-down one notch — `feat:` ships as a **patch** (0.1.x) that all nine consumers auto-adopt
-on their next install, and a breaking change (`feat!:` / `BREAKING CHANGE`) ships as
-**0.2.0**, which their `^0.1.0` ranges exclude, so it reaches nobody until nine bump PRs
-land. Pick the prefix with that in mind: `feat:` means "this goes live in nine Workers",
-`feat!:` means "and now I owe nine PRs".
+Repo-specific: this package is **past 1.0** (1.1.0), so the bump ladder is the ordinary
+one — `release-please`'s `bump-minor-pre-major` + `bump-patch-for-minor-pre-major` are
+still in `release-please-config.json` but are inert above 0.x. `fix:` ships a patch and
+`feat:` a minor, and **both** are inside every consumer's `^1.0.0`, so either one is
+auto-adopted by all eleven on their next install. A breaking change (`feat!:` /
+`BREAKING CHANGE`) ships **2.0.0**, which those carets exclude, so it reaches nobody
+until eleven bump PRs land. Pick the prefix with that in mind: `fix:`/`feat:` means
+"this goes live in eleven Workers", `feat!:` means "and now I owe eleven PRs".
