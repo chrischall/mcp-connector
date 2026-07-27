@@ -44,6 +44,42 @@ more consumers were one dependabot run from the same break.
 peer must also be a devDependency here, and the version we build against must satisfy
 the range we advertise. Widening a peer still needs the consumer build below.
 
+### Widening the `agents` peer is a coordinated fleet change
+
+That incident cost eight red dependabot PRs, a published release (1.1.1), and a
+per-repo lockfile lift, because fixing the peer here does **not** fix the consumers:
+their lockfiles had already pinned the old connector, and a `@dependabot recreate` only
+re-resolves packages inside the update group's scope — so where the connector sat
+outside that group, the conflict survived the rebuild.
+
+To stop it recurring, every consumer's `.github/dependabot.yml` now carries an ignore
+ceiling mirroring this package's `agents` peer:
+
+```yaml
+    ignore:
+      - dependency-name: agents
+        versions:
+          - ">=0.20.0"
+```
+
+Without it the loop is guaranteed: on `0.x` a caret pins the MINOR, so every `agents`
+minor lands outside a consumer's `^0.x.y` range, dependabot proposes the bump, and it
+fails whenever this package's window has not moved first.
+
+**So raising the ceiling here is step one of a fleet pass, not a local change:**
+
+1. widen the `agents` peer in `package.json` (and the matching devDependency, which
+   `tests/peer-ranges.test.ts` enforces);
+2. verify against a consumer Worker build (`npm pack` here, install the tarball there,
+   run that repo's `npm run worker:test`);
+3. release, so consumers can actually resolve the widened range from npm;
+4. raise the `>=0.20.0` ignore ceiling in all consumers listed above, and refresh each
+   lockfile (`npm update @chrischall/mcp-connector`) — dependabot will not do this part
+   for you.
+
+Doing 1–3 without 4 leaves the fleet unable to take the newer `agents`. Doing 4 first
+puts every consumer into `ERESOLVE`.
+
 **The tests in this repo do not protect the consumers.** `tests/` covers `login.ts`,
 `login-page.ts`, and the peer ranges only — `createConnector` itself (the
 `OAuthProvider` wiring, the `McpAgent` subclass, the route mounting) has **no test
