@@ -90,13 +90,27 @@ export async function handleAuthorize<Props>(
     const error = messageOf(e);
     // A connector advances a multi-step login by REJECTING with instructions:
     // it names the fields that rejection brings into play.
-    const revealFields = Array.isArray((e as { revealFields?: unknown })?.revealFields)
-      ? ((e as { revealFields: string[] }).revealFields)
+    // Both of these arrive on a thrown error, i.e. from connector code this
+    // package does not control, so treat their SHAPE as untrusted too — not
+    // just their content. Validate down to the leaves and fail soft: a
+    // malformed hint should cost the user a hint, not the whole login page.
+    const rawReveal = (e as { revealFields?: unknown })?.revealFields;
+    const revealFields = Array.isArray(rawReveal)
+      ? rawReveal.filter((f): f is string => typeof f === 'string')
       : undefined;
+
     const rawHints = (e as { fieldHints?: unknown })?.fieldHints;
     const fieldHints =
       rawHints && typeof rawHints === 'object' && !Array.isArray(rawHints)
-        ? (rawHints as Record<string, string>)
+        ? Object.fromEntries(
+            // A non-string value reaches escapeHtml() and throws
+            // `value.replace is not a function`, taking down the render — so
+            // the entry is dropped rather than coerced, since a stringified
+            // object is worse than no hint.
+            Object.entries(rawHints as Record<string, unknown>).filter(
+              (entry): entry is [string, string] => typeof entry[1] === 'string',
+            ),
+          )
         : undefined;
     if (wantsJson) {
       // 200, not 4xx: a rejected first submission is how a multi-step login ASKS

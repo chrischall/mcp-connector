@@ -148,6 +148,51 @@ describe('preserveFieldsOnError — AJAX submission', () => {
     await expect(res.json()).resolves.toEqual({ ok: false, error: 'nope' });
   });
 
+  it('drops non-string hint values instead of crashing the render', async () => {
+    // escapeHtml() calls .replace on the value, so a number reaches it and
+    // throws `value.replace is not a function` — taking down the whole login
+    // page over a cosmetic hint. Dropped, not coerced: a stringified object
+    // would be worse than no hint at all.
+    const failing = { ...auth, login: vi.fn(async () => {
+      const err = new Error('we texted you a code');
+      Object.assign(err, {
+        revealFields: ['otp'],
+        fieldHints: { otp: 'Sent to (***) ***-6609', bogus: 12345, alsoBogus: { nested: true } },
+      });
+      throw err;
+    }) };
+    const res = await handleAuthorize(post({ 'x-connector-ajax': '1' }), fakeEnv(), failing);
+
+    await expect(res.json()).resolves.toEqual({
+      ok: false, error: 'we texted you a code',
+      revealFields: ['otp'], fieldHints: { otp: 'Sent to (***) ***-6609' },
+    });
+  });
+
+  it('drops non-string revealFields entries the same way', async () => {
+    const failing = { ...auth, login: vi.fn(async () => {
+      const err = new Error('nope');
+      Object.assign(err, { revealFields: ['otp', 42, null] });
+      throw err;
+    }) };
+    const res = await handleAuthorize(post({ 'x-connector-ajax': '1' }), fakeEnv(), failing);
+    await expect(res.json()).resolves.toEqual({ ok: false, error: 'nope', revealFields: ['otp'] });
+  });
+
+  it('renders the HTML path without throwing when a hint is malformed', async () => {
+    // The no-JS path renders through escapeHtml directly, so it is the one that
+    // would actually crash rather than merely serialize badly.
+    const failing = { ...auth, login: vi.fn(async () => {
+      const err = new Error('bad');
+      Object.assign(err, { fieldHints: { username: 999 } });
+      throw err;
+    }) };
+    const res = await handleAuthorize(post(), fakeEnv(), failing);
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('bad');
+  });
+
   it('still serves the original HTML flow when the header is absent', async () => {
     // The header is the ONLY switch, so a browser with JavaScript disabled is
     // unaffected by this feature existing.
