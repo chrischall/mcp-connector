@@ -132,7 +132,12 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
               for (var i = 0; i < inputs.length; i++) {
                 if (!inputs[i].value) { target = inputs[i]; break; }
               }
-              (target || inputs[0]).focus();
+              // Guard the empty case: a public service declares fields: [], so
+              // there is nothing visible to focus. Without this, inputs[0] is
+              // undefined and .focus() throws — which the .catch below would
+              // swallow into a full-page form.submit(), turning a clean inline
+              // error into a needless reload.
+              if (inputs.length) (target || inputs[0]).focus();
             })
             .catch(function () {
               // Network/parse failure: fall back to the plain post rather than

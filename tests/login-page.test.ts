@@ -168,6 +168,15 @@ describe('preserveFieldsOnError — page markup', () => {
     expect(html).not.toContain('[value=""]');
   });
 
+  it('guards focus for a fields-less public service', () => {
+    // fields: [] is a documented contract. Pairing it with this flag is odd but
+    // legal, and an unguarded inputs[0].focus() would throw — silently, since
+    // the chained .catch turns any throw into a full-page form.submit().
+    const html = renderLoginPage({ ...base, fields: [], preserveFieldsOnError: true } as never);
+    expect(html).toContain('if (inputs.length)');
+    expect(html).not.toMatch(/\(target \|\| inputs\[0\]\)\.focus\(\);(?!\s*\n)/);
+  });
+
   it('still renders a server-side error when JS never runs', () => {
     const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never, { error: 'bad password' });
     expect(html).toContain('bad password');
