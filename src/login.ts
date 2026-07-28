@@ -59,6 +59,11 @@ export async function handleAuthorize<Props>(
     });
   }
 
+  // Set by the progressive-enhancement script when `preserveFieldsOnError` is
+  // on. Its presence is the ONLY thing that changes the response shape — a
+  // browser without JavaScript never sends it and gets the original HTML flow.
+  const wantsJson = request.headers.get('x-connector-ajax') === '1';
+
   const { values, oauthReq: oauthReqInfo } = await parseLoginForm(request);
   const fields: Record<string, string> = {};
   for (const field of auth.fields) {
@@ -74,9 +79,22 @@ export async function handleAuthorize<Props>(
       metadata: {},
       props,
     });
+    // `fetch` cannot follow a 302 to the OAuth client's redirect_uri usefully —
+    // it would be chased in the background and the user would sit on a form that
+    // silently succeeded. Hand the URL back and let the page navigate.
+    if (wantsJson) {
+      return Response.json({ ok: true, redirectTo });
+    }
     return Response.redirect(redirectTo, 302);
   } catch (e) {
-    return new Response(renderLoginPage(auth, { error: messageOf(e), oauthReq: oauthReqInfo }), {
+    const error = messageOf(e);
+    if (wantsJson) {
+      // 200, not 4xx: a rejected first submission is how a multi-step login ASKS
+      // for the next input. The `ok` flag carries the outcome; an error status
+      // would make ordinary flow control look like a transport failure.
+      return Response.json({ ok: false, error });
+    }
+    return new Response(renderLoginPage(auth, { error, oauthReq: oauthReqInfo }), {
       status: 200,
       headers: { 'content-type': 'text/html' },
     });

@@ -129,3 +129,47 @@ describe('renderLoginPage', () => {
     expect(html).toContain('autofocus');
   });
 });
+
+describe('preserveFieldsOnError — page markup', () => {
+  const base = { service: 'Kia', fields: [{ name: 'username', label: 'Email' }], login: async () => ({}) };
+
+  it('emits no script at all by default', () => {
+    // Opt-in: the other connectors pinning this package must be untouched.
+    expect(renderLoginPage(base as never)).not.toContain('<script');
+  });
+
+  it('emits the enhancement and a live error region when enabled', () => {
+    const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never);
+    expect(html).toContain('<script');
+    expect(html).toContain("'x-connector-ajax'");
+    expect(html).toContain('id="cx-error"');
+    expect(html).toContain('aria-live="polite"');
+  });
+
+  it('keeps method="post" so a no-JS browser still submits', () => {
+    const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never);
+    expect(html).toContain('<form method="post">');
+  });
+
+  it('writes server text with textContent, never innerHTML', () => {
+    // The error string comes from the server; assigning it as markup would make
+    // an upstream message a script-injection vector.
+    const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never);
+    expect(html).toContain('textContent');
+    expect(html).not.toContain('innerHTML');
+  });
+
+  it('focuses the first EMPTY input, not merely the first one', () => {
+    // The old selector's first alternative was dead (the second matched
+    // everything), so it always focused field 1 — the email — rather than the
+    // code box a multi-step login has just brought into play.
+    const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never);
+    expect(html).toContain('if (!inputs[i].value)');
+    expect(html).not.toContain('[value=""]');
+  });
+
+  it('still renders a server-side error when JS never runs', () => {
+    const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never, { error: 'bad password' });
+    expect(html).toContain('bad password');
+  });
+});

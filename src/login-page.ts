@@ -72,6 +72,79 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
     })
     .join('\n');
 
+  // Progressive enhancement, emitted only when the connector opts in. The form
+  // keeps its `method="post"`, so with JS off (or if this throws) the browser
+  // performs the original full-page submit and nothing is lost.
+  //
+  // Why it exists: a multi-step login has to REJECT submission 1 in order to ask
+  // for a texted/emailed code, and a full-page reload at that moment wipes the
+  // credentials the user must resend alongside it.
+  //
+  // No user input is interpolated here, and the only thing written back into the
+  // DOM is `textContent` — never `innerHTML` — so a server error string cannot
+  // become markup.
+  const enhancementScript = auth.preserveFieldsOnError
+    ? `    <script>
+      (function () {
+        var form = document.querySelector('form');
+        var box = document.getElementById('cx-error');
+        if (!form || !box || !window.fetch) return;
+        var button = form.querySelector('button[type="submit"]');
+        var label = button ? button.textContent : '';
+
+        function show(message) {
+          box.textContent = '';
+          if (!message) return;
+          var div = document.createElement('div');
+          div.className = 'error';
+          div.setAttribute('role', 'alert');
+          var span = document.createElement('span');
+          span.textContent = message;
+          div.appendChild(span);
+          box.appendChild(div);
+          box.scrollIntoView({ block: 'nearest' });
+        }
+
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          if (button) { button.disabled = true; button.textContent = 'Working…'; }
+          fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'x-connector-ajax': '1' },
+            body: new FormData(form),
+            credentials: 'same-origin',
+          })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              if (data && data.ok && data.redirectTo) {
+                window.location.assign(data.redirectTo);
+                return;
+              }
+              show((data && data.error) || 'Sign-in failed. Please try again.');
+              if (button) { button.disabled = false; button.textContent = label; }
+              // Focus the first EMPTY visible input — on a multi-step login
+              // that is the box just added to the flow (the code), not the
+              // email the user already filled in. Checked as a live property,
+              // since the value ATTRIBUTE reflects the rendered default
+              // rather than what is currently typed.
+              var inputs = form.querySelectorAll('input:not([type=hidden])');
+              var target = null;
+              for (var i = 0; i < inputs.length; i++) {
+                if (!inputs[i].value) { target = inputs[i]; break; }
+              }
+              (target || inputs[0]).focus();
+            })
+            .catch(function () {
+              // Network/parse failure: fall back to the plain post rather than
+              // stranding the user on a form that appears to do nothing.
+              if (button) { button.disabled = false; button.textContent = label; }
+              form.submit();
+            });
+        });
+      })();
+    </script>`
+    : '';
+
   const errorHtml = error
     ? `<div class="error" role="alert"><svg viewBox="0 0 20 20" aria-hidden="true" width="16" height="16"><path fill="currentColor" d="M10 1.7 1 18h18L10 1.7Zm0 5.6a.9.9 0 0 1 .9.9v3.6a.9.9 0 0 1-1.8 0V8.2a.9.9 0 0 1 .9-.9Zm0 7.3a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg><span>${escapeHtml(error)}</span></div>`
     : '';
@@ -200,7 +273,7 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
             ? `${service} needs no credentials — authorize to read its public data.`
             : `Sign in with your ${service} account to authorize access.`
         }</p>
-        ${errorHtml}
+        <div id="cx-error" aria-live="polite">${errorHtml}</div>
         <form method="post">
 ${fieldsHtml}
           <input type="hidden" name="oauthReq" value="${escapeHtml(encodedOauthReq)}" />
@@ -209,6 +282,7 @@ ${fieldsHtml}
         ${privacyHtml}
       </div>
     </main>
+${enhancementScript}
   </body>
 </html>`;
 }
