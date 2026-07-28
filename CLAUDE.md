@@ -265,6 +265,10 @@ and re-probe the deployed connectors afterwards.
   - Anything it writes into the DOM from a server string must go through
     `textContent`, never `innerHTML` — an upstream error message is untrusted
     input and would otherwise be an injection vector.
+  - **No backticks or `${` inside that script, comments included.** It lives in a
+    TS template literal, so either one terminates the string and the build fails
+    somewhere unrelated-looking. Two commits have died this way writing a comment
+    that quoted an identifier; write identifiers bare, or in CAPS.
 - `env` is typed `any` in `ConnectorAuth.login` and `buildClient` because the harness
   can't know a consumer's bindings; the consumer types it at its own boundary.
 

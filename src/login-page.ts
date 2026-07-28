@@ -87,7 +87,7 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
       const hintHtml = `\n        <p class="hint" data-hint="${name}"${hint ? '' : ' hidden'}>${hint ? escapeHtml(hint) : ''}</p>`;
       return `      <div class="field"${hidden ? ' hidden data-reveal="' + name + '"' : ''}>
         <label for="f-${name}">${escapeHtml(field.label)}</label>
-        <input id="f-${name}" name="${name}" type="${type}"${hidden ? ' disabled' : ''}${field.optional || hidden ? '' : ' required'} autocomplete="${autocompleteFor(field.name, isPassword)}"${i === 0 ? ' autofocus' : ''}${extras} />
+        <input id="f-${name}" name="${name}" type="${type}"${hidden ? ' disabled' : ''}${field.optional ? ' data-optional' : ''}${field.optional || hidden ? '' : ' required'} autocomplete="${autocompleteFor(field.name, isPassword)}"${i === 0 ? ' autofocus' : ''}${extras} />
       </div>`.replace('</div>', hintHtml + '\n      </div>');
     })
     .join('\n');
@@ -161,7 +161,15 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
                   if (wrap) {
                     wrap.hidden = false;
                     var inp = wrap.querySelector('input');
-                    if (inp) inp.disabled = false;
+                    if (inp) {
+                      inp.disabled = false;
+                      // Match the server-rendered no-JS path, which marks a
+                      // revealed field required. Without this the two paths
+                      // disagree: with JS the user could submit the second step
+                      // blank, silently restarting the first and issuing a
+                      // fresh code with no explanation.
+                      if (!inp.hasAttribute('data-optional')) inp.required = true;
+                    }
                   }
                 }
               }

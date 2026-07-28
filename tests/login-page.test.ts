@@ -236,6 +236,29 @@ describe('preserveFieldsOnError — page markup', () => {
 
     expect(otp).not.toContain('disabled');
     expect(html).not.toMatch(/<div class="field" hidden/);
+    // The half that matters and was unasserted: once revealed the field is in
+    // play, so it becomes mandatory. `required` is suppressed only while hidden.
+    expect(otp).toContain('required');
+  });
+
+  it('keeps a revealed field optional when it was declared optional', () => {
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Code', revealOnDemand: true, optional: true }] } as never,
+      { revealFields: ['otp'] },
+    );
+    const otp = html.match(/<input[^>]*name="otp"[^>]*>/)?.[0] ?? '';
+    expect(otp).not.toContain('required');
+    expect(otp).toContain('data-optional');
+  });
+
+  it('makes the script mirror the server: reveal implies required', () => {
+    // Otherwise the two paths disagree — with JS the second step could be
+    // submitted blank, silently restarting the first and issuing a new code.
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Code', revealOnDemand: true }], preserveFieldsOnError: true } as never,
+    );
+    expect(html).toContain('inp.required = true');
+    expect(html).toContain("hasAttribute('data-optional')");
   });
 
   it('teaches the script to re-enable, not merely un-hide', () => {
