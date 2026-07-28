@@ -2,6 +2,45 @@ export interface LoginField {
   name: string;
   label: string;
   type?: 'text' | 'password';
+  /**
+   * Render WITHOUT the `required` attribute. Every field is required by
+   * default, which is right for a one-shot form and wrong for a multi-step one.
+   *
+   * A challenge-based login (see {@link ConnectorAuth.preserveFieldsOnError})
+   * needs a box the user must leave EMPTY on the first submission — that empty
+   * submit is what asks the service to send a code. Marked required, the
+   * browser silently refuses to submit and the flow is unreachable: no request
+   * is made, no code is sent, and nothing explains why.
+   *
+   * `login()` still receives the field as `''`, so a connector that wants it
+   * present must validate it itself.
+   */
+  optional?: boolean;
+  /**
+   * Render this field hidden AND disabled until the service asks for it.
+   *
+   * For a challenge-based login, the second input (a texted code) is
+   * meaningless until the first submission has requested one — and showing it
+   * up front actively misleads: a label describing a code reads, on a freshly
+   * loaded page, like the page announcing that a code was already sent.
+   *
+   * `disabled` is what makes this safe rather than merely cosmetic. A disabled
+   * input is excluded from native validation AND from submission, so the first
+   * submit cannot be blocked by an empty box the user was never meant to fill.
+   *
+   * To reveal it, `login()` throws an error carrying `revealFields`:
+   *
+   * ```ts
+   * const err = new Error('We texted you a code. Enter it below.');
+   * (err as { revealFields?: string[] }).revealFields = ['otp'];
+   * throw err;
+   * ```
+   *
+   * Both paths honour it: the inline script un-hides the named fields, and a
+   * no-JS re-render marks them revealed server-side — so the flow still
+   * completes with JavaScript disabled.
+   */
+  revealOnDemand?: boolean;
 }
 
 export interface ConnectorAuth<Props> {

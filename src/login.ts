@@ -88,13 +88,18 @@ export async function handleAuthorize<Props>(
     return Response.redirect(redirectTo, 302);
   } catch (e) {
     const error = messageOf(e);
+    // A connector advances a multi-step login by REJECTING with instructions:
+    // it names the fields that rejection brings into play.
+    const revealFields = Array.isArray((e as { revealFields?: unknown })?.revealFields)
+      ? ((e as { revealFields: string[] }).revealFields)
+      : undefined;
     if (wantsJson) {
       // 200, not 4xx: a rejected first submission is how a multi-step login ASKS
       // for the next input. The `ok` flag carries the outcome; an error status
       // would make ordinary flow control look like a transport failure.
-      return Response.json({ ok: false, error });
+      return Response.json({ ok: false, error, ...(revealFields ? { revealFields } : {}) });
     }
-    return new Response(renderLoginPage(auth, { error, oauthReq: oauthReqInfo }), {
+    return new Response(renderLoginPage(auth, { error, oauthReq: oauthReqInfo, revealFields }), {
       status: 200,
       headers: { 'content-type': 'text/html' },
     });

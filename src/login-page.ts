@@ -40,6 +40,11 @@ function autocompleteFor(name: string, isPassword: boolean): string {
 export interface RenderLoginPageOptions {
   error?: string;
   oauthReq?: unknown;
+  /**
+   * Names of `revealOnDemand` fields to render visible and enabled. Set by the
+   * no-JS path so a full-page re-render still advances a multi-step login.
+   */
+  revealFields?: string[];
 }
 
 /**
@@ -50,7 +55,7 @@ export interface RenderLoginPageOptions {
  * strict Worker CSP; theme-aware, accessible, and responsive.
  */
 export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: RenderLoginPageOptions = {}): string {
-  const { error, oauthReq } = options;
+  const { error, oauthReq, revealFields = [] } = options;
   const encodedOauthReq = oauthReq !== undefined ? btoa(JSON.stringify(oauthReq)) : '';
   const service = escapeHtml(auth.service);
   const accent = safeAccent(auth.accent, '#4f46e5');
@@ -65,9 +70,13 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
       const type = isPassword ? 'password' : 'text';
       const name = escapeHtml(field.name);
       const extras = isPassword ? '' : ' autocapitalize="none" autocorrect="off" spellcheck="false"';
-      return `      <div class="field">
+      // Hidden AND disabled: `hidden` alone would still submit the value and
+      // still be validated, so an empty required box would block the very
+      // submission that is supposed to reveal it.
+      const hidden = !!field.revealOnDemand && !revealFields.includes(field.name);
+      return `      <div class="field"${hidden ? ' hidden data-reveal="' + name + '"' : ''}>
         <label for="f-${name}">${escapeHtml(field.label)}</label>
-        <input id="f-${name}" name="${name}" type="${type}" required autocomplete="${autocompleteFor(field.name, isPassword)}"${i === 0 ? ' autofocus' : ''}${extras} />
+        <input id="f-${name}" name="${name}" type="${type}"${hidden ? ' disabled' : ''}${field.optional || hidden ? '' : ' required'} autocomplete="${autocompleteFor(field.name, isPassword)}"${i === 0 ? ' autofocus' : ''}${extras} />
       </div>`;
     })
     .join('\n');
@@ -119,6 +128,20 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
               if (data && data.ok && data.redirectTo) {
                 window.location.assign(data.redirectTo);
                 return;
+              }
+              // Bring any newly-relevant fields into play. Un-hide AND re-enable:
+              // a disabled input is neither validated nor submitted, so leaving
+              // it disabled would silently drop the value the user is about to
+              // type.
+              if (data && data.revealFields && data.revealFields.length) {
+                for (var r = 0; r < data.revealFields.length; r++) {
+                  var wrap = form.querySelector('[data-reveal="' + data.revealFields[r] + '"]');
+                  if (wrap) {
+                    wrap.hidden = false;
+                    var inp = wrap.querySelector('input');
+                    if (inp) inp.disabled = false;
+                  }
+                }
               }
               show((data && data.error) || 'Sign-in failed. Please try again.');
               if (button) { button.disabled = false; button.textContent = label; }
