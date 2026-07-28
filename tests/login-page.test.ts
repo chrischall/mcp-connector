@@ -291,6 +291,25 @@ describe('preserveFieldsOnError — page markup', () => {
     expect(html).toMatch(/<p class="hint" data-hint="otp" hidden>/);
   });
 
+  it('suppresses the generic fallback for a flow-advancing rejection', () => {
+    // A prompt with no text is just a reveal: the hint beside the field already
+    // explains it, and a red "Sign-in failed" banner would report a problem
+    // where none occurred. The fallback is reserved for a rejection that
+    // explains nothing at all.
+    const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never);
+    expect(html).toContain("advancing ? '' : 'Sign-in failed. Please try again.'");
+  });
+
+  it('renders no banner at all for an empty server-side error', () => {
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Code', revealOnDemand: true }] } as never,
+      { error: '', revealFields: ['otp'], fieldHints: { otp: 'Sent to (***) ***-6609' } },
+    );
+    // No error block, but the hint that replaces it is present.
+    expect(html).not.toContain('role="alert"');
+    expect(html).toContain('(***) ***-6609');
+  });
+
   it('still renders a server-side error when JS never runs', () => {
     const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never, { error: 'bad password' });
     expect(html).toContain('bad password');

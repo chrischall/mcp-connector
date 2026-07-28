@@ -45,6 +45,11 @@ export interface LoginField {
    * Both paths honour it: the inline script un-hides the named fields, and a
    * no-JS re-render marks them revealed server-side — so the flow still
    * completes with JavaScript disabled.
+   *
+   * A rejection carrying `revealFields` is a PROMPT, not a failure. Give it an
+   * empty message to render no error banner at all — appropriate when the
+   * `fieldHints` beside the newly-revealed input already say everything, and a
+   * red banner would report a problem where none occurred.
    */
   revealOnDemand?: boolean;
 }
