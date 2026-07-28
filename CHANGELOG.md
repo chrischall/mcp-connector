@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/chrischall/mcp-connector/compare/v1.2.0...v1.2.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* a revealed field must be required on the script path too ([#26](https://github.com/chrischall/mcp-connector/issues/26)) ([bebe3e6](https://github.com/chrischall/mcp-connector/commit/bebe3e6473a89a8cf9b0d7085783cb6de857a0d7))
+* multi-step logins were unreachable — every field rendered `required` ([#23](https://github.com/chrischall/mcp-connector/issues/23)) ([4eae426](https://github.com/chrischall/mcp-connector/commit/4eae42645bbd1d9cd396bc1fc2a215b92249553b))
+
 ## [1.2.0](https://github.com/chrischall/mcp-connector/compare/v1.1.1...v1.2.0) (2026-07-28)
 
 
