@@ -122,8 +122,17 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
               }
               show((data && data.error) || 'Sign-in failed. Please try again.');
               if (button) { button.disabled = false; button.textContent = label; }
-              var first = form.querySelector('input:not([type=hidden])[value=""], input:not([type=hidden])');
-              if (first) first.focus();
+              // Focus the first EMPTY visible input — on a multi-step login
+              // that is the box just added to the flow (the code), not the
+              // email the user already filled in. Checked as a live property,
+              // since the value ATTRIBUTE reflects the rendered default
+              // rather than what is currently typed.
+              var inputs = form.querySelectorAll('input:not([type=hidden])');
+              var target = null;
+              for (var i = 0; i < inputs.length; i++) {
+                if (!inputs[i].value) { target = inputs[i]; break; }
+              }
+              (target || inputs[0]).focus();
             })
             .catch(function () {
               // Network/parse failure: fall back to the plain post rather than

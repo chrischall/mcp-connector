@@ -251,7 +251,20 @@ and re-probe the deployed connectors afterwards.
   relative-luminance crossover, so mid-range accents (a saturated blue at L≈0.3)
   correctly get dark ink. The naive midpoint gets this visibly wrong.
 - **The login page must stay fully self-contained** — inline CSS, inline SVG, no
-  external assets, no scripts. It renders under a strict Worker CSP.
+  external assets. It renders under a strict Worker CSP.
+  - **One inline script is permitted, and only under `preserveFieldsOnError`**
+    (default off), which exists because a multi-step login must *reject* its
+    first submission to ask for a texted code, and a full-page reload there wipes
+    the credentials the user has to resend alongside it.
+  - **A strict CSP blocks inline script execution, not merely external assets** —
+    so on a consumer Worker that sets one, this feature does not fire. That is
+    safe but silent: the form keeps `method="post"`, so the user gets the
+    original full-page flow and nothing breaks, but nobody is told the
+    enhancement was skipped. Treat the script as strictly optional polish; never
+    put behaviour that the flow depends on inside it.
+  - Anything it writes into the DOM from a server string must go through
+    `textContent`, never `innerHTML` — an upstream error message is untrusted
+    input and would otherwise be an injection vector.
 - `env` is typed `any` in `ConnectorAuth.login` and `buildClient` because the harness
   can't know a consumer's bindings; the consumer types it at its own boundary.
 
