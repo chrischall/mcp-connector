@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/chrischall/mcp-connector/compare/v1.2.1...v1.3.0) (2026-07-28)
+
+
+### Features
+
+* a flow-advancing rejection may render no banner at all ([#28](https://github.com/chrischall/mcp-connector/issues/28)) ([03e1e7c](https://github.com/chrischall/mcp-connector/commit/03e1e7cf10f1e7c8f1f577f286fd0d6677a8cce9))
+
 ## [1.2.1](https://github.com/chrischall/mcp-connector/compare/v1.2.0...v1.2.1) (2026-07-28)
 
 
