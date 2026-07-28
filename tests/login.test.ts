@@ -125,6 +125,29 @@ describe('preserveFieldsOnError — AJAX submission', () => {
     await expect(res.json()).resolves.toEqual({ ok: false, error: 'bad password' });
   });
 
+  it('passes fieldHints from a thrown error into the JSON', async () => {
+    const failing = { ...auth, login: vi.fn(async () => {
+      const err = new Error('we texted you a code');
+      Object.assign(err, { revealFields: ['otp'], fieldHints: { otp: 'Sent to (***) ***-6609' } });
+      throw err;
+    }) };
+    const res = await handleAuthorize(post({ 'x-connector-ajax': '1' }), fakeEnv(), failing);
+    await expect(res.json()).resolves.toEqual({
+      ok: false, error: 'we texted you a code',
+      revealFields: ['otp'], fieldHints: { otp: 'Sent to (***) ***-6609' },
+    });
+  });
+
+  it('ignores a non-object fieldHints rather than passing it through', async () => {
+    const failing = { ...auth, login: vi.fn(async () => {
+      const err = new Error('nope');
+      Object.assign(err, { fieldHints: ['not', 'an', 'object'] });
+      throw err;
+    }) };
+    const res = await handleAuthorize(post({ 'x-connector-ajax': '1' }), fakeEnv(), failing);
+    await expect(res.json()).resolves.toEqual({ ok: false, error: 'nope' });
+  });
+
   it('still serves the original HTML flow when the header is absent', async () => {
     // The header is the ONLY switch, so a browser with JavaScript disabled is
     // unaffected by this feature existing.

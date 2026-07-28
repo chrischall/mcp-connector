@@ -32,7 +32,13 @@ export interface LoginField {
    *
    * ```ts
    * const err = new Error('We texted you a code. Enter it below.');
-   * (err as { revealFields?: string[] }).revealFields = ['otp'];
+   * Object.assign(err, {
+   *   revealFields: ['otp'],
+   *   // Rendered under the input, where it is still visible while typing —
+   *   // an error banner is the wrong place for a fact the user needs to check
+   *   // the code against.
+   *   fieldHints: { otp: 'Sent to (***) ***-1234' },
+   * });
    * throw err;
    * ```
    *

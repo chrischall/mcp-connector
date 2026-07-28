@@ -93,13 +93,18 @@ export async function handleAuthorize<Props>(
     const revealFields = Array.isArray((e as { revealFields?: unknown })?.revealFields)
       ? ((e as { revealFields: string[] }).revealFields)
       : undefined;
+    const rawHints = (e as { fieldHints?: unknown })?.fieldHints;
+    const fieldHints =
+      rawHints && typeof rawHints === 'object' && !Array.isArray(rawHints)
+        ? (rawHints as Record<string, string>)
+        : undefined;
     if (wantsJson) {
       // 200, not 4xx: a rejected first submission is how a multi-step login ASKS
       // for the next input. The `ok` flag carries the outcome; an error status
       // would make ordinary flow control look like a transport failure.
-      return Response.json({ ok: false, error, ...(revealFields ? { revealFields } : {}) });
+      return Response.json({ ok: false, error, ...(revealFields ? { revealFields } : {}), ...(fieldHints ? { fieldHints } : {}) });
     }
-    return new Response(renderLoginPage(auth, { error, oauthReq: oauthReqInfo, revealFields }), {
+    return new Response(renderLoginPage(auth, { error, oauthReq: oauthReqInfo, revealFields, fieldHints }), {
       status: 200,
       headers: { 'content-type': 'text/html' },
     });

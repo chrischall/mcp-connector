@@ -45,6 +45,15 @@ export interface RenderLoginPageOptions {
    * no-JS path so a full-page re-render still advances a multi-step login.
    */
   revealFields?: string[];
+  /**
+   * Per-field help text, keyed by field name — rendered beneath the input.
+   *
+   * Exists so a multi-step login can put the fact the user needs WHILE TYPING
+   * next to the box they are typing in: which phone number a code went to,
+   * which address, how long it lasts. An error banner is the wrong home for
+   * that — it reads as transient, and it is nowhere near the field.
+   */
+  fieldHints?: Record<string, string>;
 }
 
 /**
@@ -55,7 +64,7 @@ export interface RenderLoginPageOptions {
  * strict Worker CSP; theme-aware, accessible, and responsive.
  */
 export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: RenderLoginPageOptions = {}): string {
-  const { error, oauthReq, revealFields = [] } = options;
+  const { error, oauthReq, revealFields = [], fieldHints = {} } = options;
   const encodedOauthReq = oauthReq !== undefined ? btoa(JSON.stringify(oauthReq)) : '';
   const service = escapeHtml(auth.service);
   const accent = safeAccent(auth.accent, '#4f46e5');
@@ -74,10 +83,12 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
       // still be validated, so an empty required box would block the very
       // submission that is supposed to reveal it.
       const hidden = !!field.revealOnDemand && !revealFields.includes(field.name);
+      const hint = fieldHints[field.name];
+      const hintHtml = `\n        <p class="hint" data-hint="${name}"${hint ? '' : ' hidden'}>${hint ? escapeHtml(hint) : ''}</p>`;
       return `      <div class="field"${hidden ? ' hidden data-reveal="' + name + '"' : ''}>
         <label for="f-${name}">${escapeHtml(field.label)}</label>
         <input id="f-${name}" name="${name}" type="${type}"${hidden ? ' disabled' : ''}${field.optional || hidden ? '' : ' required'} autocomplete="${autocompleteFor(field.name, isPassword)}"${i === 0 ? ' autofocus' : ''}${extras} />
-      </div>`;
+      </div>`.replace('</div>', hintHtml + '\n      </div>');
     })
     .join('\n');
 
@@ -133,6 +144,17 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
               // a disabled input is neither validated nor submitted, so leaving
               // it disabled would silently drop the value the user is about to
               // type.
+              if (data && data.fieldHints) {
+                for (var h in data.fieldHints) {
+                  var hintEl = form.querySelector('[data-hint="' + h + '"]');
+                  if (hintEl) {
+                    // textContent, never innerHTML — this string comes from the
+                    // server and is untrusted.
+                    hintEl.textContent = data.fieldHints[h];
+                    hintEl.hidden = !data.fieldHints[h];
+                  }
+                }
+              }
               if (data && data.revealFields && data.revealFields.length) {
                 for (var r = 0; r < data.revealFields.length; r++) {
                   var wrap = form.querySelector('[data-reveal="' + data.revealFields[r] + '"]');
@@ -274,6 +296,13 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
       button:hover { filter: brightness(1.06) saturate(1.05); }
       button:active { transform: translateY(1px); }
       button:focus-visible { outline: none; box-shadow: 0 0 0 3.5px var(--ring); }
+      .hint {
+        margin: 6px 0 0;
+        font-size: 13px;
+        line-height: 1.4;
+        opacity: 0.75;
+      }
+      .hint[hidden] { display: none; }
       .error {
         display: flex; gap: 9px; align-items: flex-start;
         margin: 0 0 20px; padding: 11px 13px;

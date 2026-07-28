@@ -156,7 +156,11 @@ describe('preserveFieldsOnError — page markup', () => {
     // an upstream message a script-injection vector.
     const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never);
     expect(html).toContain('textContent');
-    expect(html).not.toContain('innerHTML');
+    // Assert no ASSIGNMENT, not the bare token: a comment explaining why the
+    // token is avoided would otherwise fail this, which is the test policing
+    // its own documentation rather than the behaviour.
+    expect(html).not.toMatch(/\.innerHTML\s*=/);
+    expect(html).not.toMatch(/insertAdjacentHTML|outerHTML\s*=|document\.write/);
   });
 
   it('focuses the first EMPTY input, not merely the first one', () => {
@@ -242,6 +246,26 @@ describe('preserveFieldsOnError — page markup', () => {
     );
     expect(html).toContain('inp.disabled = false');
     expect(html).toContain('wrap.hidden = false');
+  });
+
+  it('renders a field hint under its input, escaped', () => {
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Texted code', revealOnDemand: true }] } as never,
+      { revealFields: ['otp'], fieldHints: { otp: 'Sent to (***) ***-6609 <b>' } },
+    );
+    expect(html).toContain('data-hint="otp"');
+    expect(html).toContain('(***) ***-6609');
+    // Server-supplied, so it must be escaped rather than trusted as markup.
+    expect(html).toContain('&lt;b&gt;');
+    expect(html).not.toContain('-6609 <b>');
+  });
+
+  it('leaves the hint element present but hidden when there is no hint', () => {
+    // Present so the script can fill it in later without rebuilding the DOM.
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Code' }] } as never,
+    );
+    expect(html).toMatch(/<p class="hint" data-hint="otp" hidden>/);
   });
 
   it('still renders a server-side error when JS never runs', () => {
