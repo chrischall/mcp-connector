@@ -78,3 +78,49 @@ it('POST with bad creds re-renders the form with an error (no completeAuthorizat
   expect(await res.text()).toContain('login failed');
   expect(env.OAUTH_PROVIDER.completeAuthorization).not.toHaveBeenCalled();
 });
+
+describe('preserveFieldsOnError — AJAX submission', () => {
+  const encodedReq = btoa(JSON.stringify({ clientId: 'c' }));
+  const post = (extraHeaders: Record<string, string> = {}) =>
+    new Request('https://x/authorize', {
+      method: 'POST',
+      headers: extraHeaders,
+      body: new URLSearchParams({ username: 'chris', password: 'pw', oauthReq: encodedReq }),
+    });
+
+  it('returns the redirect target as JSON instead of a 302 the fetch would chase', async () => {
+    // A 302 to the OAuth client would be followed in the background, leaving the
+    // user staring at a form that silently succeeded.
+    const res = await handleAuthorize(post({ 'x-connector-ajax': '1' }), fakeEnv(), auth);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    await expect(res.json()).resolves.toEqual({ ok: true, redirectTo: 'https://claude.ai/cb?code=xyz' });
+  });
+
+  it('reports a rejected attempt as ok:false with HTTP 200', async () => {
+    // 200 on purpose: rejecting submission 1 is how a multi-step login ASKS for
+    // the next input. A 4xx would make ordinary flow control look like a
+    // transport failure to the script.
+    const failing = { ...auth, login: vi.fn(async () => { throw new Error('we texted you a code'); }) };
+    const res = await handleAuthorize(post({ 'x-connector-ajax': '1' }), fakeEnv(), failing);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: false, error: 'we texted you a code' });
+  });
+
+  it('still serves the original HTML flow when the header is absent', async () => {
+    // The header is the ONLY switch, so a browser with JavaScript disabled is
+    // unaffected by this feature existing.
+    const failing = { ...auth, login: vi.fn(async () => { throw new Error('nope'); }) };
+    const res = await handleAuthorize(post(), fakeEnv(), failing);
+
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(await res.text()).toContain('nope');
+  });
+
+  it('redirects normally without the header, even on success', async () => {
+    const res = await handleAuthorize(post(), fakeEnv(), auth);
+    expect(res.status).toBe(302);
+  });
+});
