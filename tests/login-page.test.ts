@@ -156,7 +156,11 @@ describe('preserveFieldsOnError — page markup', () => {
     // an upstream message a script-injection vector.
     const html = renderLoginPage({ ...base, preserveFieldsOnError: true } as never);
     expect(html).toContain('textContent');
-    expect(html).not.toContain('innerHTML');
+    // Assert no ASSIGNMENT, not the bare token: a comment explaining why the
+    // token is avoided would otherwise fail this, which is the test policing
+    // its own documentation rather than the behaviour.
+    expect(html).not.toMatch(/\.innerHTML\s*=/);
+    expect(html).not.toMatch(/insertAdjacentHTML|outerHTML\s*=|document\.write/);
   });
 
   it('focuses the first EMPTY input, not merely the first one', () => {
@@ -175,6 +179,93 @@ describe('preserveFieldsOnError — page markup', () => {
     const html = renderLoginPage({ ...base, fields: [], preserveFieldsOnError: true } as never);
     expect(html).toContain('if (inputs.length)');
     expect(html).not.toMatch(/\(target \|\| inputs\[0\]\)\.focus\(\);(?!\s*\n)/);
+  });
+
+  it('omits `required` on an optional field, and keeps it everywhere else', () => {
+    // The bug this exists to prevent: every field was hardcoded `required`, so a
+    // multi-step login whose first submit must leave the code box EMPTY was
+    // silently unreachable — the browser refused to submit, no request was made,
+    // no code was sent, and nothing said why. Every other layer's tests passed,
+    // because they all ran BELOW native form validation.
+    const html = renderLoginPage({
+      ...base,
+      fields: [
+        { name: 'username', label: 'Email' },
+        { name: 'password', label: 'Password', type: 'password' as const },
+        { name: 'otp', label: 'Texted code', optional: true },
+      ],
+      preserveFieldsOnError: true,
+    } as never);
+
+    const inputFor = (name: string) =>
+      html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`))?.[0] ?? '';
+
+    expect(inputFor('otp')).not.toContain('required');
+    expect(inputFor('username')).toContain('required');
+    expect(inputFor('password')).toContain('required');
+  });
+
+  it('renders a revealOnDemand field hidden AND disabled, with no `required`', () => {
+    // All three matter together. `hidden` alone still submits and still
+    // validates, so an empty required box would block the very submission meant
+    // to reveal it — which is exactly how the code box made this flow
+    // unreachable through the UI while every server-side test passed.
+    const html = renderLoginPage({
+      ...base,
+      fields: [
+        { name: 'username', label: 'Email' },
+        { name: 'otp', label: 'Texted code', revealOnDemand: true },
+      ],
+    } as never);
+    const otp = html.match(/<input[^>]*name="otp"[^>]*>/)?.[0] ?? '';
+
+    expect(otp).toContain('disabled');
+    expect(otp).not.toContain('required');
+    expect(html).toContain('data-reveal="otp"');
+    expect(html).toMatch(/<div class="field" hidden/);
+    // The ordinary field is untouched.
+    expect(html.match(/<input[^>]*name="username"[^>]*>/)?.[0]).toContain('required');
+  });
+
+  it('reveals the named field server-side, so no-JS can still finish', () => {
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Texted code', revealOnDemand: true }] } as never,
+      { error: 'we texted you a code', revealFields: ['otp'] },
+    );
+    const otp = html.match(/<input[^>]*name="otp"[^>]*>/)?.[0] ?? '';
+
+    expect(otp).not.toContain('disabled');
+    expect(html).not.toMatch(/<div class="field" hidden/);
+  });
+
+  it('teaches the script to re-enable, not merely un-hide', () => {
+    // Un-hiding a still-disabled input would silently drop whatever is typed
+    // into it, since disabled inputs are not submitted.
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Code', revealOnDemand: true }], preserveFieldsOnError: true } as never,
+    );
+    expect(html).toContain('inp.disabled = false');
+    expect(html).toContain('wrap.hidden = false');
+  });
+
+  it('renders a field hint under its input, escaped', () => {
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Texted code', revealOnDemand: true }] } as never,
+      { revealFields: ['otp'], fieldHints: { otp: 'Sent to (***) ***-6609 <b>' } },
+    );
+    expect(html).toContain('data-hint="otp"');
+    expect(html).toContain('(***) ***-6609');
+    // Server-supplied, so it must be escaped rather than trusted as markup.
+    expect(html).toContain('&lt;b&gt;');
+    expect(html).not.toContain('-6609 <b>');
+  });
+
+  it('leaves the hint element present but hidden when there is no hint', () => {
+    // Present so the script can fill it in later without rebuilding the DOM.
+    const html = renderLoginPage(
+      { ...base, fields: [{ name: 'otp', label: 'Code' }] } as never,
+    );
+    expect(html).toMatch(/<p class="hint" data-hint="otp" hidden>/);
   });
 
   it('still renders a server-side error when JS never runs', () => {
