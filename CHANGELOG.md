@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/chrischall/mcp-connector/compare/v1.1.1...v1.2.0) (2026-07-28)
+
+
+### Features
+
+* preserveFieldsOnError — submit via fetch so a rejection keeps the form ([#19](https://github.com/chrischall/mcp-connector/issues/19)) ([23f633d](https://github.com/chrischall/mcp-connector/commit/23f633d2c377ea69650600877aab53b2f2242219))
+
+
+### Bug Fixes
+
+* guard focus when a connector declares no fields ([#22](https://github.com/chrischall/mcp-connector/issues/22)) ([9f8101c](https://github.com/chrischall/mcp-connector/commit/9f8101c6cd4318d7076d3b715667397566875558))
+
 ## [1.1.1](https://github.com/chrischall/mcp-connector/compare/v1.1.0...v1.1.1) (2026-07-26)
 
 
