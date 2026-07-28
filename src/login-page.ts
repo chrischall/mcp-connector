@@ -173,7 +173,12 @@ export function renderLoginPage<Props>(auth: ConnectorAuth<Props>, options: Rend
                   }
                 }
               }
-              show((data && data.error) || 'Sign-in failed. Please try again.');
+              // The generic fallback is for an UNEXPLAINED failure. A rejection
+              // that reveals a field is a prompt advancing the flow, and its
+              // explanation may live entirely in that field's hint — so an
+              // empty message there means "say nothing", not "something broke".
+              var advancing = !!(data && data.revealFields && data.revealFields.length);
+              show((data && data.error) || (advancing ? '' : 'Sign-in failed. Please try again.'));
               if (button) { button.disabled = false; button.textContent = label; }
               // Focus the first EMPTY visible input — on a multi-step login
               // that is the box just added to the flow (the code), not the
