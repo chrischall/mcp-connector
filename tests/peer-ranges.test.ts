@@ -45,6 +45,30 @@ function upperBound(range: string): string | null {
   return bounds.size === 1 ? [...bounds][0]! : null;
 }
 
+/**
+ * The devDependency range for a peer, or a clean assertion failure naming it.
+ *
+ * Both call sites feed this straight into semver, and semver reads `.trim()` off
+ * whatever it is handed — so `undefined` surfaces as
+ * `TypeError: Cannot read properties of undefined (reading 'trim')`, which names
+ * neither the package nor the file that has to change. `minVersion(undefined)`
+ * and `new Range(undefined)` fail identically here; neither call site was safer
+ * than the other.
+ *
+ * The first test in this file already asserts every peer has a devDependency, so
+ * this is unreachable while that holds. It exists so that if the two ever drift
+ * apart, the failure says which package is missing rather than pointing at
+ * semver's internals.
+ */
+function requireDevRange(name: string): string {
+  const devRange = pkg.devDependencies[name];
+  expect(
+    devRange,
+    `peerDependencies.${name} has no matching devDependency — add one so CI builds against it`,
+  ).toBeDefined();
+  return devRange!;
+}
+
 describe('peer dependency ranges', () => {
   it('declares every peer as a devDependency so CI actually exercises it', () => {
     const missing = Object.keys(pkg.peerDependencies).filter(
@@ -55,7 +79,7 @@ describe('peer dependency ranges', () => {
 
   for (const [name, peerRange] of Object.entries(pkg.peerDependencies)) {
     it(`accepts the ${name} version we build against`, () => {
-      const devRange = pkg.devDependencies[name];
+      const devRange = requireDevRange(name);
       const devFloor = minVersion(devRange);
       expect(devFloor, `unparseable devDependency range: ${devRange}`).not.toBeNull();
       expect(
@@ -80,7 +104,7 @@ describe('peer dependency ranges', () => {
   // support is, that is the one CI has to resolve.
   for (const [name, peerRange] of Object.entries(pkg.peerDependencies)) {
     it(`builds against the highest ${name} version it advertises`, () => {
-      const devRange = pkg.devDependencies[name]!;
+      const devRange = requireDevRange(name);
       const peerCeiling = upperBound(peerRange);
       const devCeiling = upperBound(devRange);
       expect(peerCeiling, `peerDependencies.${name} (${peerRange}) has no single ceiling to compare`).not.toBeNull();
