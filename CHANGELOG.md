@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/chrischall/mcp-connector/compare/v1.3.0...v1.3.1) (2026-08-09)
+
+
+### Bug Fixes
+
+* **deps:** widen the workers-oauth-provider peer range to &lt;0.11.0 ([#31](https://github.com/chrischall/mcp-connector/issues/31)) ([6eb0608](https://github.com/chrischall/mcp-connector/commit/6eb06086e3c41509fad0a943a2c61dce8e281f8e)), closes [#32](https://github.com/chrischall/mcp-connector/issues/32)
+
 ## [1.3.0](https://github.com/chrischall/mcp-connector/compare/v1.2.1...v1.3.0) (2026-07-28)
 
 
