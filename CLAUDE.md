@@ -40,9 +40,19 @@ than what the fleet actually installs is a fleet-wide install failure, not a war
 `ERESOLVE` because this package still claimed `agents@^0.17.3` (artsonia-mcp#72). Ten
 more consumers were one dependabot run from the same break.
 
-`tests/peer-ranges.test.ts` guards the half of that which is checkable offline — every
-peer must also be a devDependency here, and the version we build against must satisfy
-the range we advertise. Widening a peer still needs the consumer build below.
+`tests/peer-ranges.test.ts` guards the half of that which is checkable offline, in two
+directions. Every peer must also be a devDependency here; the version we build against
+must **satisfy** the range we advertise (catches a range too NARROW — the artsonia-mcp#72
+shape, where consumers cannot install); and the devDependency's ceiling must **equal** the
+peer's (catches a range too WIDE — versions advertised as supported that CI never runs).
+
+The second half exists because the first missed a real one: #31 widened the
+workers-oauth-provider peer to `<0.11.0` while the devDependency stayed `^0.8.1`, so
+0.9.x and 0.10.x were public API and never exercised. `0.8.1` satisfies `>=0.8.1 <0.11.0`,
+so the guard passed throughout. **Building against the floor of a freshly widened range is
+the failure the satisfies-check cannot see.**
+
+Widening a peer still needs the consumer build below.
 
 ### Widening the `agents` peer is a coordinated fleet change
 
