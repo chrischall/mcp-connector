@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/chrischall/mcp-connector/compare/v1.3.1...v1.3.2) (2026-09-01)
+
+
+### Bug Fixes
+
+* **deps:** patch browserslist and @hono/node-server in the lockfile ([#48](https://github.com/chrischall/mcp-connector/issues/48)) ([a8c61a6](https://github.com/chrischall/mcp-connector/commit/a8c61a6b1810364544dc18c4cd3d7f3b53caee42)), closes [#47](https://github.com/chrischall/mcp-connector/issues/47)
+
 ## [1.3.1](https://github.com/chrischall/mcp-connector/compare/v1.3.0...v1.3.1) (2026-08-09)
 
 
