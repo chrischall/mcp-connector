@@ -52,7 +52,7 @@ jobs:
       contents: read
       id-token: write # npm Trusted Publisher (OIDC) + provenance
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name || inputs.republish_tag }}
       - uses: actions/setup-node@v4
