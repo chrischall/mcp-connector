@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/chrischall/mcp-connector/compare/v1.3.2...v1.3.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **deps:** publish the widened agents peer range ([#58](https://github.com/chrischall/mcp-connector/issues/58)) ([d911422](https://github.com/chrischall/mcp-connector/commit/d91142283fc086a4f7b6c276b5897e5f83977fcf))
+
 ## [1.3.2](https://github.com/chrischall/mcp-connector/compare/v1.3.1...v1.3.2) (2026-09-01)
 
 
