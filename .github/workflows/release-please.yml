@@ -25,7 +25,7 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           # RELEASE_PAT, not the default GITHUB_TOKEN. A release PR opened with
