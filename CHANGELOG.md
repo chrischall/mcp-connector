@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/chrischall/mcp-connector/compare/v1.3.3...v1.3.4) (2026-09-18)
+
+
+### Bug Fixes
+
+* **deps:** support agents 0.24 (widen peer to &lt;0.25.0) ([#62](https://github.com/chrischall/mcp-connector/issues/62)) ([331af92](https://github.com/chrischall/mcp-connector/commit/331af92e64ce80dea6e8f49a751454aa305b7eeb))
+
 ## [1.3.3](https://github.com/chrischall/mcp-connector/compare/v1.3.2...v1.3.3) (2026-09-08)
 
 
