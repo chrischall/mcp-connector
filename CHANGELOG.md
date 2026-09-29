@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.5](https://github.com/chrischall/mcp-connector/compare/v1.3.4...v1.3.5) (2026-09-29)
+
+
+### Bug Fixes
+
+* **deps:** bump hono in the security group across 1 directory ([#68](https://github.com/chrischall/mcp-connector/issues/68)) ([3b1285c](https://github.com/chrischall/mcp-connector/commit/3b1285c51fee476d712e56dcc2fa18e31d714c19))
+* **deps:** bump ip-address in the security group across 1 directory ([#70](https://github.com/chrischall/mcp-connector/issues/70)) ([192042f](https://github.com/chrischall/mcp-connector/commit/192042f92d873aa12338e5f75f49c348fb08c568))
+
 ## [1.3.4](https://github.com/chrischall/mcp-connector/compare/v1.3.3...v1.3.4) (2026-09-18)
 
 
